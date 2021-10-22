@@ -7,7 +7,6 @@ app = Flask(__name__)
 
 # set k8s client
 config.load_kube_config()
-v1=client.CoreV1Api()
 
 # set docker client
 docker_client = docker.from_env()
@@ -64,12 +63,24 @@ def build_image():
 
 @app.route("/list_pods", methods=['GET'])
 def list_pods():
-    ret = v1.list_pod_for_all_namespaces(watch=False)
+    ret = client.CoreV1Api().list_pod_for_all_namespaces(watch=False)
     arr = []
     for i in ret.items:
         dic={}
         dic['pod_ip'] = i.status.pod_ip
         dic['namespace'] = i.metadata.namespace
         dic['name'] = i.metadata.name
+        arr.append(dic)
+    return jsonify(arr)
+
+@app.route("/list_deployments", methods=['GET'])
+def list_deployments():
+    ret = client.AppsV1Api().list_deployment_for_all_namespaces()
+    arr = []
+    for i in ret.items:
+        dic={}
+        dic['name'] = i.metadata.name
+        dic['available_replicas'] = i.status.available_replicas
+        dic['replicas'] = i.status.replicas
         arr.append(dic)
     return jsonify(arr)
