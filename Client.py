@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request
 import docker
 from kubernetes import client, config
+import yaml
 
 # set flask
 app = Flask(__name__)
@@ -30,8 +31,7 @@ def list_images():
     return jsonify(arr)
 
 '''
-form data:
-image_id
+image_id: text
 '''
 @app.route("/remove_image", methods=['POST'])
 def remove_image():
@@ -39,8 +39,7 @@ def remove_image():
     return 'delete success'
 
 '''
-form data:
-repository
+repository: text
 '''
 @app.route("/pull_image", methods=['POST'])
 def pull_image():
@@ -48,7 +47,6 @@ def pull_image():
     return 'pull success'
 
 '''
-form data:
 dockerfile: a file 
 tag: text
 '''
@@ -60,6 +58,21 @@ def build_image():
 #######################
 # k8s
 #######################
+
+@app.route("/list_nodes", methods=['GET'])
+def list_nodes():
+    ret = client.CoreV1Api().list_node()
+    arr = []
+    for i in ret.items:
+        dic = {}
+        dic['kind'] = i.kind
+        dic['name'] = i.metadata.name
+        dic['namespace'] = i.metadata.namespace
+        dic['creation_timestamp'] = i.metadata.creation_timestamp
+        dic['allocatable'] = i.status.allocatable
+        dic['phase'] = i.status.phase
+        arr.append(dic)
+    return jsonify(arr)
 
 @app.route("/list_pods", methods=['GET'])
 def list_pods():
@@ -81,8 +94,11 @@ def list_pods():
             s['ready'] = status.ready
             container_statuses.append(s)
         dic['container_statuses'] = container_statuses
+        dic['node_name'] = i.spec.node_name
         arr.append(dic)
     return jsonify(arr)
+
+######### deployment ######### 
 
 @app.route("/list_deployments", methods=['GET'])
 def list_deployments():
@@ -98,18 +114,25 @@ def list_deployments():
         arr.append(dic)
     return jsonify(arr)
 
-@app.route("/list_nodes", methods=['GET'])
-def list_nodes():
-    ret = client.CoreV1Api().list_node()
-    arr = []
-    for i in ret.items:
-        dic = {}
-        dic['kind'] = i.kind
-        dic['name'] = i.metadata.name
-        dic['namespace'] = i.metadata.namespace
-        dic['creation_timestamp'] = i.metadata.creation_timestamp
-        dic['allocatable'] = i.status.allocatable
-        dic['phase'] = i.status.phase
-        arr.append(dic)
-    return jsonify(arr)
+'''
+name: text
+namespace: text
+'''
+@app.route("/delete_deployment", methods=['POST'])
+def delete_deployment():
+    client.AppsV1Api().delete_namespaced_deployment(name=request.form['name'], namespace=request.form['namespace'])
+    return 'delete success'
+
+'''
+namespace: text
+config: a yaml file
+'''
+@app.route("/create_deployment", methods=['POST'])
+def create_deployment():
+    dep = yaml.safe_load(request.files.get('config'))
+    k8s_apps_v1 = client.AppsV1Api()
+    k8s_apps_v1.create_namespaced_deployment(body=dep, namespace=request.form['namespace'])
+    return 'create success'
+
+
 
