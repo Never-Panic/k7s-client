@@ -67,9 +67,20 @@ def list_pods():
     arr = []
     for i in ret.items:
         dic={}
-        dic['pod_ip'] = i.status.pod_ip
         dic['namespace'] = i.metadata.namespace
         dic['name'] = i.metadata.name
+        dic['creation_timestamp'] = i.metadata.creation_timestamp
+        dic['pod_ip'] = i.status.pod_ip
+        container_statuses = []
+        for status in i.status.container_statuses:
+            s = {}
+            s['name'] = status.name
+            s['container_id'] = status.container_id
+            s['image_id'] = status.image_id
+            s['image'] = status.image
+            s['ready'] = status.ready
+            container_statuses.append(s)
+        dic['container_statuses'] = container_statuses
         arr.append(dic)
     return jsonify(arr)
 
@@ -80,7 +91,25 @@ def list_deployments():
     for i in ret.items:
         dic={}
         dic['name'] = i.metadata.name
+        dic['creation_timestamp'] = i.metadata.creation_timestamp
+        dic['namespace'] = i.metadata.namespace
         dic['available_replicas'] = i.status.available_replicas
         dic['replicas'] = i.status.replicas
         arr.append(dic)
     return jsonify(arr)
+
+@app.route("/list_nodes", methods=['GET'])
+def list_nodes():
+    ret = client.CoreV1Api().list_node()
+    arr = []
+    for i in ret.items:
+        dic = {}
+        dic['kind'] = i.kind
+        dic['name'] = i.metadata.name
+        dic['namespace'] = i.metadata.namespace
+        dic['creation_timestamp'] = i.metadata.creation_timestamp
+        dic['allocatable'] = i.status.allocatable
+        dic['phase'] = i.status.phase
+        arr.append(dic)
+    return jsonify(arr)
+
