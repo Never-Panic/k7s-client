@@ -130,9 +130,49 @@ config: a yaml file
 @app.route("/create_deployment", methods=['POST'])
 def create_deployment():
     dep = yaml.safe_load(request.files.get('config'))
-    k8s_apps_v1 = client.AppsV1Api()
-    k8s_apps_v1.create_namespaced_deployment(body=dep, namespace=request.form['namespace'])
+    client.AppsV1Api().create_namespaced_deployment(body=dep, namespace=request.form['namespace'])
     return 'create success'
 
+######### service ######### 
+@app.route("/list_services", methods=['GET'])
+def list_services():
+    ret = client.CoreV1Api().list_service_for_all_namespaces()
+    arr = []
+    for i in ret.items:
+        dic={}
+        dic['name'] = i.metadata.name
+        dic['creation_timestamp'] = i.metadata.creation_timestamp
+        dic['namespace'] = i.metadata.namespace
+        dic['cluster_ip'] = i.spec.cluster_ip
+        dic['external_i_ps'] = i.spec.external_i_ps
+        dic['type'] = i.spec.type
+        ports = []
+        for p in i.spec.ports:
+            tem = {}
+            tem['node_port'] = p.node_port
+            tem['port'] = p.port
+            tem['protocol'] = p.protocol
+            ports.append(tem)
+        dic['ports'] = ports
+        arr.append(dic)
+    return jsonify(arr)
 
+'''
+namespace: text
+config: a yaml file
+'''
+@app.route("/create_service", methods=['POST'])
+def create_service():
+    dep = yaml.safe_load(request.files.get('config'))
+    client.CoreV1Api().create_namespaced_service(body=dep, namespace=request.form['namespace'])
+    return 'create success'
+
+'''
+name: text
+namespace: text
+'''
+@app.route("/delete_service", methods=['POST'])
+def delete_service():
+    client.CoreV1Api().delete_namespaced_service(name=request.form['name'], namespace=request.form['namespace'])
+    return 'delete success'
 
