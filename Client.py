@@ -13,7 +13,7 @@ config.load_kube_config()
 docker_client = docker.from_env()
 
 #######################
-# docker 
+# image 
 #######################
 
 @app.route("/list_images", methods=['GET'])
@@ -43,7 +43,7 @@ repository: text
 '''
 @app.route("/pull_image", methods=['POST'])
 def pull_image():
-    docker_client.images.pull(request.form['repository'])
+    docker_client.images.pull(repository=request.form['repository'])
     return 'pull success'
 
 '''
@@ -54,6 +54,51 @@ tag: text
 def build_image():
     docker_client.images.build(fileobj=request.files.get('dockerfile'), tag=request.form['tag'])
     return 'build success'
+
+#######################
+# container
+#######################
+
+@app.route("/list_containers", methods=['GET'])
+def list_containers():
+    containers = docker_client.containers.list()
+    arr = []
+    for container in containers: 
+        dic = {}
+        dic["id"] = container.id
+        dic['name'] = container.name
+        dic['image'] = {'id': container.image.id,'tags': container.image.tags}
+        dic["labels"] = container.labels
+        dic["short_id"] = container.short_id
+        dic["status"] = container.status
+        arr.append(dic)
+    return jsonify(arr)
+
+'''
+image: str
+name: str
+command[]: list of str
+environment[]: list of str
+host_posts[]: list of int
+container_ports[]: list of str
+volumes[]: list of str
+'''
+@app.route("/run_container", methods=['POST'])
+def run_container():
+    command = request.values.getlist('command[]')
+    environment = request.values.getlist('environment[]')
+    container_ports = request.values.getlist('container_ports[]')
+    host_posts = request.values.getlist('host_posts[]')
+    volumes = request.values.getlist('volumes[]')
+
+    ports = {}
+    for cp, hp in zip(container_ports, host_posts):
+        ports[cp] = hp
+
+    docker_client.containers.run(image=request.form['image'], name=request.form['name'], command=command, 
+                                environment=environment, ports=ports,volumes=volumes, detach=True)
+    return 'create success'
+
 
 #######################
 # k8s
@@ -134,6 +179,7 @@ def create_deployment():
     return 'create success'
 
 ######### service ######### 
+
 @app.route("/list_services", methods=['GET'])
 def list_services():
     ret = client.CoreV1Api().list_service_for_all_namespaces()
