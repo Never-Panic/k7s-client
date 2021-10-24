@@ -99,6 +99,70 @@ def run_container():
                                 environment=environment, ports=ports,volumes=volumes, detach=True)
     return 'create success'
 
+'''
+container_id: str
+new_name: str
+'''
+@app.route("/rename_container", methods=['POST'])
+def rename_container():
+    container = docker_client.containers.get(request.form['container_id'])
+    container.rename(request.form['new_name'])
+    return 'rename success'
+
+'''
+container_id: str
+'''
+@app.route("/restart_container", methods=['POST'])
+def restart_container():
+    container = docker_client.containers.get(request.form['container_id'])
+    container.restart()
+    return 'restart success'
+
+'''
+container_id: str
+'''
+@app.route("/start_container", methods=['POST'])
+def start_container():
+    container = docker_client.containers.get(request.form['container_id'])
+    container.start()
+    return 'start success'
+
+'''
+container_id: str
+'''
+@app.route("/stop_container", methods=['POST'])
+def stop_container():
+    container = docker_client.containers.get(request.form['container_id'])
+    container.stop()
+    return 'stop success'
+
+'''
+container_id: str
+'''
+@app.route("/remove_container", methods=['POST'])
+def remove_container():
+    container = docker_client.containers.get(request.form['container_id'])
+    container.remove()
+    return 'remove success'
+
+'''
+container_id: str
+repository: str
+tag: str
+message: str
+author: str
+changes: str
+'''
+@app.route("/commit_container", methods=['POST'])
+def commit_container():
+    container = docker_client.containers.get(request.form['container_id'])
+
+    changes = None
+    if 'changes' in request.form: changes = request.form['changes']
+
+    container.commit(repository=request.form['repository'], tag=request.form['tag'], message=request.form['message'],
+                    author=request.form['author'], changes=changes)
+    return 'commit success'
 
 #######################
 # k8s
