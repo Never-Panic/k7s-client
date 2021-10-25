@@ -376,3 +376,11 @@ def create_application():
         client.CoreV1Api().create_namespaced_service(body=dep, namespace=request.form['namespace'])
 
     return 'create success'
+
+'''
+namespace: str
+'''
+@app.route("/delete_application", methods=["POST"])
+def delete_application():
+    client.CoreV1Api().delete_namespace(request.form['namespace'])
+    return 'delete success'
