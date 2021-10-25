@@ -242,6 +242,17 @@ def create_deployment():
     client.AppsV1Api().create_namespaced_deployment(body=dep, namespace=request.form['namespace'])
     return 'create success'
 
+'''
+name: str
+namepace: str
+config: a yaml file
+'''
+@app.route("/update_deployment", methods=['POST'])
+def update_deployment():
+    dep = yaml.safe_load(request.files.get('config'))
+    client.AppsV1Api().replace_namespaced_deployment(body=dep, name=request.form['name'], namespace=request.form['namespace'])
+    return 'update success'
+
 ######### service ######### 
 
 @app.route("/list_services", methods=['GET'])
@@ -286,3 +297,82 @@ def delete_service():
     client.CoreV1Api().delete_namespaced_service(name=request.form['name'], namespace=request.form['namespace'])
     return 'delete success'
 
+'''
+name: str
+namepace: str
+config: a yaml file
+'''
+@app.route("/update_service", methods=['POST'])
+def update_service():
+    dep = yaml.safe_load(request.files.get('config'))
+    client.CoreV1Api().replace_namespaced_service(body=dep, name=request.form['name'], namespace=request.form['namespace'])
+    return 'update success'
+
+######### application #########
+
+@app.route("/list_applications", methods=['GET'])
+def list_applications():
+    ns_list = client.CoreV1Api().list_namespace()
+    arr = []
+    for ns_item in ns_list.items:
+        ns = ns_item.metadata.name
+        deployment_list = client.AppsV1Api().list_namespaced_deployment(ns)
+        service_list = client.CoreV1Api().list_namespaced_service(ns)
+        
+        dic = {}
+        dic['namespace'] = ns
+
+        deployments = []
+        for i in deployment_list.items:
+            d={}
+            d['name'] = i.metadata.name
+            d['creation_timestamp'] = i.metadata.creation_timestamp
+            d['namespace'] = i.metadata.namespace
+            d['available_replicas'] = i.status.available_replicas
+            d['replicas'] = i.status.replicas
+            deployments.append(d)
+        dic['deployments'] = deployments
+
+        services = []
+        for i in service_list.items:
+            d={}
+            d['name'] = i.metadata.name
+            d['creation_timestamp'] = i.metadata.creation_timestamp
+            d['namespace'] = i.metadata.namespace
+            d['cluster_ip'] = i.spec.cluster_ip
+            d['external_i_ps'] = i.spec.external_i_ps
+            d['type'] = i.spec.type
+            ports = []
+            for p in i.spec.ports:
+                tem = {}
+                tem['node_port'] = p.node_port
+                tem['port'] = p.port
+                tem['protocol'] = p.protocol
+                ports.append(tem)
+            d['ports'] = ports
+            services.append(d)
+        dic['services'] = services
+        arr.append(dic)
+    return jsonify(arr)
+
+'''
+namespace: str, be careful with ns format
+deployment_config[]: list of deployment yaml file
+service_config[]: list of service yaml file
+'''
+@app.route("/create_application", methods=['POST'])
+def create_application():
+    deployment_config = request.files.getlist('deployment_config[]')
+    service_config = request.files.getlist('service_config[]')
+
+    client.CoreV1Api().create_namespace(body=client.V1Namespace(metadata=client.V1ObjectMeta(name=request.form['namespace']))) 
+
+    for config in deployment_config:
+        dep = yaml.safe_load(config)
+        client.AppsV1Api().create_namespaced_deployment(body=dep, namespace=request.form['namespace'])
+    
+    for config in service_config:
+        dep = yaml.safe_load(config)
+        client.CoreV1Api().create_namespaced_service(body=dep, namespace=request.form['namespace'])
+
+    return 'create success'
